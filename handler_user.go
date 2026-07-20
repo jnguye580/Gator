@@ -84,3 +84,42 @@ func handlerAgg(s *state, cmd command) error {
 	fmt.Printf("%+v\n", feed)
 	return nil
 }
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) == 0 {
+		return errors.New("Empty argument slice")
+	}
+
+	userData, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Unable to get user record: %w", err)
+	}
+
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.args[0],
+		Url:       cmd.args[1],
+		UserID:    userData.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("Unable to create feed: %w", err)
+	}
+
+	fmt.Println("%+v\n", feed)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("Unable to obtain feeds: %v", err)
+	}
+	for _, f := range feeds {
+		fmt.Printf("%s\n", f.Name)
+		fmt.Printf("%s\n", f.Url)
+		fmt.Printf("%s\n", f.Username)
+	}
+	return nil
+}
