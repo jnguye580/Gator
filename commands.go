@@ -4,10 +4,12 @@ import (
 	"errors"
 
 	"github.com/jnguye580/GATOR-PROJECT/internal/config"
+	"github.com/jnguye580/GATOR-PROJECT/internal/database"
 )
 
 type state struct {
 	config *config.Config
+	db     *database.Queries
 }
 
 type command struct {

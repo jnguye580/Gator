@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
 	"github.com/jnguye580/GATOR-PROJECT/internal/config"
+	"github.com/jnguye580/GATOR-PROJECT/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -12,8 +15,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbQueries := database.New(db)
+
 	st := state{
 		config: &cfg,
+		db:     dbQueries,
 	}
 
 	cmds := commands{
@@ -21,6 +33,7 @@ func main() {
 	}
 
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
 
 	if len(os.Args) < 2 {
 		log.Fatalf("Fatal error, program has no command")
