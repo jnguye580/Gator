@@ -51,3 +51,27 @@ func handlerRegister(s *state, cmd command) error {
 
 	return nil
 }
+
+func handlerReset(s *state, cmd command) error {
+	err := s.db.DeleteUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("Fatal error has occured: %v", err)
+	}
+	fmt.Println("Success, Database has been reset")
+	return nil
+}
+
+func handlerList(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("Fatal error has occured: %v", err)
+	}
+	for _, u := range users {
+		if u.Name == s.config.CurrentUserName {
+			fmt.Printf("* %s (current)\n", u.Name)
+		} else {
+			fmt.Printf("* %s\n", u.Name)
+		}
+	}
+	return nil
+}

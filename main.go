@@ -34,6 +34,8 @@ func main() {
 
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerList)
 
 	if len(os.Args) < 2 {
 		log.Fatalf("Fatal error, program has no command")
