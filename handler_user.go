@@ -86,7 +86,7 @@ func handlerAgg(s *state, cmd command) error {
 }
 
 func handlerAddFeed(s *state, cmd command) error {
-	if len(cmd.args) == 0 {
+	if len(cmd.args) != 2 {
 		return errors.New("Empty argument slice")
 	}
 
@@ -107,7 +107,19 @@ func handlerAddFeed(s *state, cmd command) error {
 		return fmt.Errorf("Unable to create feed: %w", err)
 	}
 
-	fmt.Println("%+v\n", feed)
+	feedFollow, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    userData.ID,
+		FeedID:    feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("Unable to create feed follow: %w", err)
+	}
+
+	fmt.Printf("%+v\n", feed)
+	fmt.Printf("%+v\n", feedFollow)
 	return nil
 }
 
@@ -120,6 +132,61 @@ func handlerFeeds(s *state, cmd command) error {
 		fmt.Printf("%s\n", f.Name)
 		fmt.Printf("%s\n", f.Url)
 		fmt.Printf("%s\n", f.Username)
+	}
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return errors.New("Invalid argument slice")
+	}
+
+	URL := cmd.args[0]
+	feed, err := s.db.GetFeedByURL(context.Background(), URL)
+	if err != nil {
+		return fmt.Errorf("Unable to obtain feed: %v", err)
+	}
+
+	userData, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Unable to get user record: %w", err)
+	}
+
+	feedFollow, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    userData.ID,
+		FeedID:    feed.ID,
+	})
+
+	if err != nil {
+		return fmt.Errorf("Unable to create feed follow: %w", err)
+	}
+
+	fmt.Printf("%v\n", feedFollow.FeedName)
+	fmt.Printf("%v\n", feedFollow.UserName)
+
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("Invalid argument slice")
+	}
+
+	userData, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Unable to get user record: %w", err)
+	}
+
+	userFollowing, err := s.db.GetFeedFollowsForUser(context.Background(), userData.ID)
+	if err != nil {
+		return fmt.Errorf("Unable to get user following data: %w", err)
+	}
+
+	for _, follows := range userFollowing {
+		fmt.Printf("%s\n", follows.FeedName)
 	}
 	return nil
 }
