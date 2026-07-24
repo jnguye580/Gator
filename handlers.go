@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,7 +118,37 @@ func scrapeFeeds(s *state) {
 	}
 
 	for _, item := range rssFeed.Channel.Item {
-		fmt.Println(item.Title)
+		publishedAt := sql.NullTime{}
+
+		parsed, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err == nil {
+			publishedAt = sql.NullTime{
+				Time:  parsed,
+				Valid: true,
+			}
+		}
+		_, err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Title: sql.NullString{
+				String: item.Title,
+				Valid:  true,
+			},
+			Url: item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  true,
+			},
+			PublishedAt: publishedAt,
+			FeedID:      feed.ID,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
+			log.Printf("Unable to create post: %v", err)
+		}
 	}
 }
 
@@ -231,6 +264,35 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Unable to unfollow feed: %w", err)
+	}
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	limit := 2
+	if len(cmd.args) == 1 {
+		parsed, err := strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return fmt.Errorf("Invalid limit: %w", err)
+		}
+		limit = parsed
+	} else if len(cmd.args) > 1 {
+		return errors.New("Invalid argument slice")
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return fmt.Errorf("Unable to get posts: %w", err)
+	}
+
+	for _, post := range posts {
+		fmt.Printf("%s\n", post.Title.String)
+		fmt.Printf("%s\n", post.Url)
+		fmt.Printf("%s\n", post.Description.String)
+		fmt.Println()
 	}
 	return nil
 }
