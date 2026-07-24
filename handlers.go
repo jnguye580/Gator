@@ -77,12 +77,46 @@ func handlerList(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
-	if err != nil {
-		return fmt.Errorf("fetching feed: %w", err)
+	if len(cmd.args) != 1 {
+		return errors.New("Invalid argument slice")
 	}
-	fmt.Printf("%+v\n", feed)
-	return nil
+
+	dur, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("Unable to obtain duration: %w", err)
+	}
+
+	fmt.Printf("Collecting feeds for %f seconds\n", dur.Seconds())
+
+	ticker := time.NewTicker(dur)
+	defer ticker.Stop()
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+}
+
+func scrapeFeeds(s *state) {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		log.Printf("Unable to get next feed to fetch: %v", err)
+		return
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), feed.ID)
+	if err != nil {
+		log.Printf("Unable to mark feed as fetched: %v", err)
+		return
+	}
+
+	rssFeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		log.Printf("Unable to fetch feed: %v", err)
+		return
+	}
+
+	for _, item := range rssFeed.Channel.Item {
+		fmt.Println(item.Title)
+	}
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
